@@ -9,7 +9,7 @@ func handlerFunc(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/" {
 		fmt.Fprint(w, "<h1>Hello, 這裡是 goblog</h1>")
 	} else if r.URL.Path == "/about" {
-		fmt.Fprint(w, "請聯絡 "+
+		fmt.Fprint(w, "請聯絡我 "+
 			"<a href=\"mailto:andycc77e@gmail.com\">andycc77e@gmail.com</a>")
 	} else {
 		fmt.Fprint(w, "<h1>請求頁面未找到 :(</h1>"+
