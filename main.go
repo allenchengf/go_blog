@@ -8,18 +8,15 @@ import (
 )
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprint(w, "<h1>Hello, 歡迎來到 goblog！</h1>")
 }
 
 func aboutHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprint(w, "請聯絡 "+
 		"<a href=\"mailto:andycc77e@gmail.com\">andycc77e@gmail.com</a>")
 }
 
 func notFoundHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusNotFound)
 	fmt.Fprint(w, "<h1>頁面未找到 :(</h1><p>如有疑惑，請聯繫我們。</p>")
 }
@@ -38,6 +35,15 @@ func articlesStoreHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "創建新的文章")
 }
 
+func forceHTMLMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 1. 設置標頭
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		// 2. 繼續處理請求
+		h.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	router := mux.NewRouter()
 
@@ -50,6 +56,8 @@ func main() {
 
 	// 自定義404頁面
 	router.NotFoundHandler = http.HandlerFunc(notFoundHandler)
+
+	router.Use(forceHTMLMiddleware)
 
 	// 通過命名路由獲取URL實例
 	homeURL, _ := router.Get("home").URL()
