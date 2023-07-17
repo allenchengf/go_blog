@@ -3,8 +3,10 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -97,11 +99,14 @@ func articlesStoreHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 檢查是否有錯誤
 	if len(errors) == 0 {
-		fmt.Fprint(w, "驗證通過!<br>")
-		fmt.Fprintf(w, "title 的值為: %v <br>", title)
-		fmt.Fprintf(w, "title 的長度為: %v <br>", len(title))
-		fmt.Fprintf(w, "body 的值為: %v <br>", body)
-		fmt.Fprintf(w, "body 的長度為: %v <br>", len(body))
+		lastInsertID, err := saveArticleToDB(title, body)
+		if lastInsertID > 0 {
+			fmt.Fprint(w, "插入成功，ID 為"+strconv.FormatInt(lastInsertID, 10))
+		} else {
+			checkError(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, "500 Internal server error")
+		}
 	} else {
 		storeURL, _ := router.Get("articles.store").URL()
 
@@ -121,6 +126,40 @@ func articlesStoreHandler(w http.ResponseWriter, r *http.Request) {
 			panic(err)
 		}
 	}
+}
+
+func saveArticleToDB(title string, body string) (int64, error) {
+
+	// 變量初始化
+	var (
+		id   int64
+		err  error
+		rs   sql.Result
+		stmt *sql.Stmt
+	)
+
+	// 1. 獲取一個 prepare 聲明語句
+	stmt, err = db.Prepare("INSERT INTO articles (title, body) VALUES(?,?)")
+	// 例行的錯誤檢測
+	if err != nil {
+		return 0, err
+	}
+
+	// 2. 在此函數運行結束後關閉此語句，防止佔用SQL連接
+	defer stmt.Close()
+
+	// 3. 執行請求，傳參數進入綁定的內容
+	rs, err = stmt.Exec(title, body)
+	if err != nil {
+		return 0, err
+	}
+
+	// 4. 插入成功的話，會返回自增ID
+	if id, err = rs.LastInsertId(); id > 0 {
+		return id, nil
+	}
+
+	return 0, err
 }
 
 func forceHTMLMiddleware(h http.Handler) http.Handler {
@@ -164,8 +203,26 @@ func articlesCreateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func createTables() {
+	createArticlesSQL := `CREATE TABLE IF NOT EXISTS articles(
+    id bigint(20) PRIMARY KEY AUTO_INCREMENT NOT NULL,
+    title varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+    body longtext COLLATE utf8mb4_unicode_ci
+); `
+
+	_, err := db.Exec(createArticlesSQL)
+	checkError(err)
+}
+
+func checkError(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func main() {
 	initDB()
+	createTables()
 	router.HandleFunc("/", homeHandler).Methods("GET").Name("home")
 	router.HandleFunc("/about", aboutHandler).Methods("GET").Name("about")
 
