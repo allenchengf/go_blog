@@ -1,17 +1,49 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 	"text/template"
+	"time"
 	"unicode/utf8"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 )
 
 var router = mux.NewRouter()
+var db *sql.DB
+
+func initDB() {
+
+	var err error
+	config := mysql.Config{
+		User:                 "root",
+		Passwd:               "root",
+		Addr:                 "127.0.0.1:3306",
+		Net:                  "tcp",
+		DBName:               "goblog",
+		AllowNativePasswords: true,
+	}
+
+	// 準備數據庫連接池
+	db, err = sql.Open("mysql", config.FormatDSN())
+	checkError(err)
+
+	// 設置最大連接數
+	db.SetMaxOpenConns(100)
+	// 設置最大空閒連接數
+	db.SetMaxIdleConns(25)
+	// 設置每個鏈結的過期時間
+	db.SetConnMaxLifetime(5 * time.Minute)
+
+	// 嘗試連接
+	err = db.Ping()
+	checkError(err)
+}
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "<h1>Hello, 歡迎來到 goblog！</h1>")
@@ -133,7 +165,7 @@ func articlesCreateHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-
+	initDB()
 	router.HandleFunc("/", homeHandler).Methods("GET").Name("home")
 	router.HandleFunc("/about", aboutHandler).Methods("GET").Name("about")
 
