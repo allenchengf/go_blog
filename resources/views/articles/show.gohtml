@@ -8,5 +8,10 @@
     <p>ID： {{ .ID }}</p>
     <p>標題： {{ .Title }}</p>
     <p>內容：{{ .Body }}</p>
+        {{/* 建構刪除按鈕  */}}
+    {{ $idString := Int64ToString .ID  }}
+    <form action="{{ RouteName2URL "articles.delete" "id" $idString }}" method="post">
+        <button type="submit" onclick="return confirm('删除動作不可逆，請確定是否繼續')">删除</button>
+    </form>
 </body>
 </html>
