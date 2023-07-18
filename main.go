@@ -67,6 +67,16 @@ type Article struct {
 	ID          int64
 }
 
+// Link 方法用來生成文章鏈結
+func (a Article) Link() string {
+	showURL, err := router.Get("articles.show").URL("id", strconv.FormatInt(a.ID, 10))
+	if err != nil {
+		checkError(err)
+		return ""
+	}
+	return showURL.String()
+}
+
 func articlesShowHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. 獲取URL參數
 	id := getRouteVariable("id", r)
@@ -97,7 +107,33 @@ func articlesShowHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func articlesIndexHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "文章列表")
+	// 1. 執行查詢語句，返回一個結果
+	rows, err := db.Query("SELECT * from articles")
+	checkError(err)
+	defer rows.Close()
+
+	var articles []Article
+	//2. 循環讀取結果
+	for rows.Next() {
+		var article Article
+		// 2.1 掃描每一行的結果並賦值到一個article 对象中
+		err := rows.Scan(&article.ID, &article.Title, &article.Body)
+		checkError(err)
+		// 2.2 將 article 追加到 articles 的這個數組中
+		articles = append(articles, article)
+	}
+
+	// 2.3 檢測遍歷時是否發生錯誤
+	err = rows.Err()
+	checkError(err)
+
+	// 3. 加載模板
+	tmpl, err := template.ParseFiles("resources/views/articles/index.gohtml")
+	checkError(err)
+
+	// 4. 渲染模板，將文章所有的數據傳輸進去渲染模板
+	err = tmpl.Execute(w, articles)
+	checkError(err)
 }
 
 type ArticlesFormData struct {
