@@ -16,7 +16,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var router = mux.NewRouter()
+var router *mux.Router
 var db *sql.DB
 
 func initDB() {
@@ -79,7 +79,7 @@ func (a Article) Link() string {
 
 func articlesShowHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. 獲取URL參數
-	id := getRouteVariable("id", r)
+	id := route.GetRouteVariable("id", r)
 
 	// 2. 讀取對應的文章數據
 	article, err := getArticleByID(id)
@@ -100,7 +100,7 @@ func articlesShowHandler(w http.ResponseWriter, r *http.Request) {
 		// 4. 讀取成功，顯示文章
 		tmpl, err := template.New("show.gohtml").
 			Funcs(template.FuncMap{
-				"RouteName2URL": RouteName2URL,
+				"RouteName2URL": route.Name2URL,
 				"Int64ToString": Int64ToString,
 			}).
 			ParseFiles("resources/views/articles/show.gohtml")
@@ -278,7 +278,7 @@ func checkError(err error) {
 func articlesEditHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 1. 獲取URL參數
-	id := getRouteVariable("id", r)
+	id := route.GetRouteVariable("id", r)
 
 	// 2. 讀取對應的文章數據
 	article, err := getArticleByID(id)
@@ -314,7 +314,7 @@ func articlesEditHandler(w http.ResponseWriter, r *http.Request) {
 
 func articlesUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. 獲取URL參數
-	id := getRouteVariable("id", r)
+	id := route.GetRouteVariable("id", r)
 
 	// 2. 讀取對應的文章數據
 	_, err := getArticleByID(id)
@@ -380,11 +380,6 @@ func articlesUpdateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getRouteVariable(parameterName string, r *http.Request) string {
-	vars := mux.Vars(r)
-	return vars[parameterName]
-}
-
 func getArticleByID(id string) (Article, error) {
 	article := Article{}
 	query := "SELECT * FROM articles WHERE id = ?"
@@ -395,7 +390,7 @@ func getArticleByID(id string) (Article, error) {
 func articlesDeleteHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 1. 獲取URL參數
-	id := getRouteVariable("id", r)
+	id := route.GetRouteVariable("id", r)
 
 	// 2. 讀取對應的文章數據
 	article, err := getArticleByID(id)
@@ -435,17 +430,6 @@ func articlesDeleteHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-}
-
-// RouteName2URL 通過路由名稱來獲取URL
-func RouteName2URL(routeName string, pairs ...string) string {
-	url, err := router.Get(routeName).URL(pairs...)
-	if err != nil {
-		checkError(err)
-		return ""
-	}
-
-	return url.String()
 }
 
 // Int64ToString 將 int64 轉換為 string
@@ -490,6 +474,9 @@ func validateArticleFormData(title string, body string) map[string]string {
 func main() {
 	initDB()
 	createTables()
+
+	route.Initialize()
+	router = route.Router
 	router.HandleFunc("/", homeHandler).Methods("GET").Name("home")
 	router.HandleFunc("/about", aboutHandler).Methods("GET").Name("about")
 
